@@ -112,7 +112,7 @@
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 mb-1">생년월일</label>
-            <input type="text" id="workerBirthInput" value="990911" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="예: 980512">
+            <input type="text" id="workerBirthInput" value="000000" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="예: 980512">
           </div>
         </div>
 
@@ -175,9 +175,14 @@
         </div>
       </div>
 
-      <!-- 3. 공제 항목 입력 (고용보험 0.9% 자동 연동) -->
+      <!-- 3. 공제 항목 입력 (고용보험 0.9% 자동 연동 및 수동 수정 가능) -->
       <div class="space-y-3 pt-2 border-t border-slate-100">
-        <h3 class="text-xs font-bold text-slate-700">3. 공제 항목 (고용보험 0.9% 자동)</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-700">3. 공제 항목 (고용보험 0.9% 자동/수정)</h3>
+          <button type="button" onclick="resetEmpInsAuto()" id="btnEmpInsAutoBadge" class="text-[10px] px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200 transition">
+            고용보험 자동산출 ON
+          </button>
+        </div>
         <div class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-[10px] font-semibold text-slate-600 mb-1">국민연금</label>
@@ -193,7 +198,7 @@
           </div>
           <div>
             <label class="block text-[10px] font-semibold text-orange-700 mb-1">고용보험(0.9%)</label>
-            <input type="text" id="inputEmpIns" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-orange-200 text-right bg-orange-50/50 font-bold text-orange-900" inputmode="numeric">
+            <input type="text" id="inputEmpIns" value="0" oninput="onMoneyInput(this); onManualEmpInsInput()" class="w-full text-xs p-2 rounded-xl border border-orange-200 text-right bg-orange-50/50 font-bold text-orange-900" inputmode="numeric">
           </div>
           <div>
             <label class="block text-[10px] font-semibold text-slate-600 mb-1">소득세등</label>
@@ -230,7 +235,7 @@
             </tr>
             <tr>
               <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">소 재 지</th>
-              <td class="border border-slate-400 p-2 text-[11px] text-slate-600" id="prevBusinessAddr">경기도 오산시 궐리사로 46번길 60-159</td>
+              <td class="border border-slate-400 p-2 text-[11px] text-slate-600" id="prevBusinessAddr">경기도 오산시 궐리사로 46번길 60-15</td>
             </tr>
           </table>
 
@@ -241,11 +246,11 @@
             </tr>
             <tr>
               <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">생년월일</th>
-              <td class="border border-slate-400 p-2" id="prevWorkerBirth">990911</td>
+              <td class="border border-slate-400 p-2" id="prevWorkerBirth">000000</td>
             </tr>
             <tr>
               <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">지급기간</th>
-              <td class="border border-slate-400 p-2 text-[11px]" id="prevPeriod">2026년 09월 1일 ~ 2026년 09월 30일</td>
+              <td class="border border-slate-400 p-2 text-[11px]" id="prevPeriod">2026년 09월 1일 ~ 2026년 09월말일</td>
             </tr>
           </table>
         </div>
@@ -470,6 +475,7 @@
       deferredPrompt = null;
     }
 
+    // 숫자 포맷 및 DOM 유틸리티 함수
     function formatNumber(num) {
       return Number(num).toLocaleString('ko-KR');
     }
@@ -481,18 +487,16 @@
       return isNaN(parsed) ? 0 : parsed;
     }
 
-    // 금액 입력 시 실시간으로 천단위 콤마 포맷팅 적용 함수
     function onMoneyInput(inputEl) {
       const cursorPosition = inputEl.selectionStart;
       const originalLength = inputEl.value.length;
       const rawVal = parseNum(inputEl.value);
       inputEl.value = rawVal === 0 && inputEl.value === "" ? "" : formatNumber(rawVal);
-      // 커서 위치 보정
       const newLength = inputEl.value.length;
       const diff = newLength - originalLength;
       try {
         inputEl.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
-      } catch(e) {}
+      } catch (e) {}
     }
 
     function getVal(id) {
@@ -505,6 +509,36 @@
       if (el) {
         el.value = typeof val === 'number' ? formatNumber(val) : val;
       }
+    }
+
+    // 고용보험 자동산출 모드 상태 (기본값: true = 자동계산)
+    let isEmpInsAuto = true;
+
+    function updateEmpInsBadge() {
+      const badge = document.getElementById('btnEmpInsAutoBadge');
+      if (!badge) return;
+      if (isEmpInsAuto) {
+        badge.innerText = '고용보험 자동산출 ON';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-orange-100 text-orange-700 font-semibold hover:bg-orange-200 transition';
+      } else {
+        badge.innerText = '수동입력 중 (클릭 시 자동복귀)';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300 transition';
+      }
+    }
+
+    // 사용자가 고용보험 입력 칸을 직접 수정했을 때 호출
+    function onManualEmpInsInput() {
+      isEmpInsAuto = false;
+      updateEmpInsBadge();
+      syncWageFromPanel(true); // 자동 덮어쓰기 방지
+    }
+
+    // 수동 수정 후 다시 고용보험 0.9% 자동계산으로 복귀할 때 호출
+    function resetEmpInsAuto() {
+      isEmpInsAuto = true;
+      updateEmpInsBadge();
+      autoCalculateEmploymentInsurance();
+      syncWageFromPanel(true);
     }
 
     // 기본시급 * 근로시간 = 기본급 및 주휴수당 자동 산출
@@ -524,7 +558,9 @@
       }
       setVal('inputHolidayPay', holidayPay);
 
-      autoCalculateEmploymentInsurance();
+      if (isEmpInsAuto) {
+        autoCalculateEmploymentInsurance();
+      }
       syncWageFromPanel();
     }
 
@@ -542,9 +578,9 @@
     function syncFromPanel() {
       const businessName = getVal('businessNameInput') || '세븐일레븐 뉴오산본점';
       const repName = getVal('repNameInput') || '이주현';
-      const businessAddr = getVal('businessAddrInput') || '경기도 오산시 역광장로 59';
-      const name = getVal('workerNameInput') || '이다솜';
-      const birth = getVal('workerBirthInput') || '990911';
+      const businessAddr = getVal('businessAddrInput') || '경기도 오산시 궐리사로 46번길 60-15';
+      const name = getVal('workerNameInput') || '000';
+      const birth = getVal('workerBirthInput') || '000000';
       const year = getVal('ctrlYear');
       const month = getVal('ctrlMonth');
       const payDate = getVal('ctrlPayDate');
@@ -568,8 +604,10 @@
       if (elFooterDate) elFooterDate.innerText = payDate.replace(/-/g, '년 ').replace(/-/g, '월 ') + '일';
     }
 
-    function syncWageFromPanel() {
-      autoCalculateEmploymentInsurance();
+    function syncWageFromPanel(skipEmpAuto = false) {
+      if (isEmpInsAuto && !skipEmpAuto) {
+        autoCalculateEmploymentInsurance();
+      }
 
       const basePay = parseNum(getVal('inputBasePay'));
       const holidayPay = parseNum(getVal('inputHolidayPay'));
@@ -615,11 +653,14 @@
     }
 
     function fillSampleData() {
+      isEmpInsAuto = true;
+      updateEmpInsBadge();
+
       setVal('businessNameInput', '세븐일레븐 뉴오산본점');
       setVal('repNameInput', '이주현');
       setVal('businessAddrInput', '경기도 오산시 궐리사로 46번길 60-15');
       setVal('workerNameInput', '000');
-      setVal('workerBirthInput', '990911');
+      setVal('workerBirthInput', '000000');
       setVal('ctrlYear', '2026');
       setVal('ctrlMonth', '09');
       setVal('ctrlPayDate', '2026-10-10');
