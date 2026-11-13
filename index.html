@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세븐일레븐 표준 임금명세서 작성기</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- High-Res Canvas & PDF Generation Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Google Fonts Inter & Pretendard -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Pretendard', 'Inter', sans-serif;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printableArea, #printableArea * {
+        visibility: visible;
+      }
+      #printableArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 10mm;
+        box-shadow: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 antialiased">
+
+  <!-- Top App Bar -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center font-bold text-white shadow">7</div>
+        <div>
+          <h1 class="text-sm font-bold leading-tight">세븐일레븐</h1>
+          <p class="text-[11px] text-slate-400">표준 임금명세서 작성 및 교부 시스템</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="fillSampleData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
+          샘플 입력
+        </button>
+        <button onclick="showMobileGuide()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          모바일 앱 가이드
+        </button>
+        <button id="btnDownloadPdf" onclick="downloadPdfDirect()" class="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5 text-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span id="btnPdfText">PDF 파일 다운로드</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- LEFT PANEL: Data Input Controls (No Print) -->
+    <section class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-5 no-print">
+      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span class="w-2 h-4 bg-orange-600 rounded-full"></span> 입력 및 수정 패널
+        </h2>
+        <span class="text-[11px] text-slate-400">실시간 자동 반영</span>
+      </div>
+
+      <!-- 1. 기본 정보 입력 -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-bold text-slate-700">1. 사업장, 근로자 및 기간 정보</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">사업장명</label>
+            <input type="text" id="businessNameInput" value="세븐일레븐 뉴오산본점" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">대표자명</label>
+            <input type="text" id="repNameInput" value="이주현" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-1">사업장 소재지</label>
+          <input type="text" id="businessAddrInput" value="경기도 오산시 역광장로 59" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">근로자 성명</label>
+            <input type="text" id="workerNameInput" value="이다솜" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">생년월일</label>
+            <input type="text" id="workerBirthInput" value="980512" oninput="syncFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="예: 980512">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">귀속 연도</label>
+            <select id="ctrlYear" onchange="syncFromPanel()" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white">
+              <option value="2026" selected>2026년</option>
+              <option value="2025">2025년</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">귀속 월</label>
+            <select id="ctrlMonth" onchange="syncFromPanel()" class="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white">
+              <option value="01">1월</option><option value="02">2월</option><option value="03">3월</option>
+              <option value="04">4월</option><option value="05">5월</option><option value="06">6월</option>
+              <option value="07">7월</option><option value="08">8월</option><option value="09" selected>9월</option>
+              <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">임금 지급일</label>
+            <input type="date" id="ctrlPayDate" value="2026-10-10" onchange="syncFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200">
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 임금 항목 입력 (시급 및 근로시간 자동계산 연동) -->
+      <div class="space-y-3 pt-2 border-t border-slate-100">
+        <h3 class="text-xs font-bold text-slate-700">2. 임금 지급 항목 (자동 계산)</h3>
+        
+        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">기본시급 (원)</label>
+            <input type="text" id="inputHourlyRate" value="10,320" oninput="onMoneyInput(this); autoCalculateAll()" class="w-full text-xs sm:text-sm p-2 rounded-lg border border-slate-200 text-right font-medium" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">총 근로시간 (시간)</label>
+            <input type="text" id="inputWorkHours" value="179.2" oninput="autoCalculateAll()" class="w-full text-xs sm:text-sm p-2 rounded-lg border border-slate-200 text-right font-medium" inputmode="decimal">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">기본급 (시급×근로시간)</label>
+            <input type="text" id="inputBasePay" value="1,850,000" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 text-right bg-slate-100 font-bold text-orange-700" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">주휴수당 (자동산출/수정)</label>
+            <input type="text" id="inputHolidayPay" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 text-right bg-orange-50/40 text-orange-800 font-medium" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">연장/야간수당</label>
+            <input type="text" id="inputOtPay" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">기타 수당</label>
+            <input type="text" id="inputOtherPay" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 공제 항목 입력 (고용보험 0.9% 자동 연동) -->
+      <div class="space-y-3 pt-2 border-t border-slate-100">
+        <h3 class="text-xs font-bold text-slate-700">3. 공제 항목 (고용보험 0.9% 자동)</h3>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">국민연금</label>
+            <input type="text" id="inputNatPen" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">건강보험</label>
+            <input type="text" id="inputHealthIns" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">장기요양</label>
+            <input type="text" id="inputLongCare" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-orange-700 mb-1">고용보험(0.9%)</label>
+            <input type="text" id="inputEmpIns" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-orange-200 text-right bg-orange-50/50 font-bold text-orange-900" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">소득세등</label>
+            <input type="text" id="inputIncomeTax" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-1">기타공제</label>
+            <input type="text" id="inputOtherDed" value="0" oninput="onMoneyInput(this); syncWageFromPanel()" class="w-full text-xs p-2 rounded-xl border border-slate-200 text-right" inputmode="numeric">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Printable Document Preview (A4 Optimized) -->
+    <section class="lg:col-span-7 flex flex-col items-center">
+      <div id="printableArea" class="w-full max-w-[210mm] bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10 text-slate-900 relative space-y-6">
+        
+        <!-- Document Header -->
+        <div class="text-center border-b-2 border-slate-900 pb-5">
+          <h2 class="text-2xl font-black tracking-tight text-slate-900">임 금 명 세 서</h2>
+          <p class="text-xs text-slate-505 mt-1">「근로기준법」 제48조 및 동법 시행령 제27조에 따라 교부합니다.</p>
+        </div>
+
+        <!-- 1. 사업장 및 근로자 정보 테이블 -->
+        <div class="grid grid-cols-2 gap-4 text-xs">
+          <table class="w-full border-collapse border border-slate-400">
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 w-1/3 text-center font-semibold">사업장명</th>
+              <td class="border border-slate-400 p-2 font-medium" id="prevBusinessName">세븐일레븐 뉴오산본점</td>
+            </tr>
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">대 표 자</th>
+              <td class="border border-slate-400 p-2" id="prevRepName">이주현</td>
+            </tr>
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">소 재 지</th>
+              <td class="border border-slate-400 p-2 text-[11px] text-slate-600" id="prevBusinessAddr">경기도 오산시 역광장로 59</td>
+            </tr>
+          </table>
+
+          <table class="w-full border-collapse border border-slate-400">
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 w-1/3 text-center font-semibold">근 로 자</th>
+              <td class="border border-slate-400 p-2 font-bold" id="prevWorkerName">이다솜</td>
+            </tr>
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">생년월일</th>
+              <td class="border border-slate-400 p-2" id="prevWorkerBirth">980512</td>
+            </tr>
+            <tr>
+              <th class="bg-slate-100 border border-slate-400 p-2 text-center font-semibold">지급기간</th>
+              <td class="border border-slate-400 p-2 text-[11px]" id="prevPeriod">2026년 09월 1일 ~ 2026년 09월 30일</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="text-right text-xs text-slate-600 font-medium">
+          임금 지급일: <span id="prevPayDate" class="text-slate-900 font-bold underline">2026-10-10</span>
+        </div>
+
+        <!-- 2. 임금 지급 및 공제 내역 -->
+        <div class="space-y-4">
+          <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <span class="w-1.5 h-3 bg-slate-900 rounded-full"></span> 지급 및 공제 내역 상세
+          </h3>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            <!-- 지급 항목 테이블 -->
+            <table class="w-full text-xs border-collapse border border-slate-400">
+              <thead>
+                <tr class="bg-slate-100">
+                  <th class="border border-slate-400 p-2 font-semibold">지급 항목</th>
+                  <th class="border border-slate-400 p-2 font-semibold text-right">금액(원)</th>
+                  <th class="border border-slate-400 p-2 font-semibold text-center">산출근거</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">기본급</td>
+                  <td id="prevBasePay" class="border border-slate-400 p-2 text-right font-bold">1,850,000원</td>
+                  <td id="calcBaseFormula" class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">시급 10,320원 × 179.2시간</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">주휴수당</td>
+                  <td id="prevHolidayPay" class="border border-slate-400 p-2 text-right font-bold">0원</td>
+                  <td id="calcHolidayFormula" class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">(근로시간/40)×8×시급</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">연장/야간</td>
+                  <td id="prevOtPay" class="border border-slate-400 p-2 text-right font-bold">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">시간외 근로 수당</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">기타수당</td>
+                  <td id="prevOtherPay" class="border border-slate-400 p-2 text-right font-bold">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">식대, 상여 등</td>
+                </tr>
+                <tr class="bg-slate-50 font-bold">
+                  <td class="border border-slate-400 p-2">지급 총액 (A)</td>
+                  <td id="prevTotalPay" class="border border-slate-400 p-2 text-right text-orange-600">1,850,000원</td>
+                  <td class="border border-slate-400 p-2"></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 공제 항목 테이블 -->
+            <table class="w-full text-xs border-collapse border border-slate-400">
+              <thead>
+                <tr class="bg-slate-100">
+                  <th class="border border-slate-400 p-2 font-semibold">공제 항목</th>
+                  <th class="border border-slate-400 p-2 font-semibold text-right">금액(원)</th>
+                  <th class="border border-slate-400 p-2 font-semibold text-center">산출근거</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">국민연금</td>
+                  <td id="prevNatPen" class="border border-slate-400 p-2 text-right">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">법정 공제율</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">건강보험</td>
+                  <td id="prevHealthIns" class="border border-slate-400 p-2 text-right">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">법정 공제율</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">장기요양보험</td>
+                  <td id="prevLongCare" class="border border-slate-400 p-2 text-right">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">건강보험료의 %</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">고용보험</td>
+                  <td id="prevEmpIns" class="border border-slate-400 p-2 text-right font-bold text-orange-800">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">과세급여의 0.9%</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">소득세/지방세</td>
+                  <td id="prevIncomeTax" class="border border-slate-400 p-2 text-right">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">간이세액표</td>
+                </tr>
+                <tr>
+                  <td class="border border-slate-400 p-2 font-medium">기타공제</td>
+                  <td id="prevOtherDed" class="border border-slate-400 p-2 text-right">0원</td>
+                  <td class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">가맹점 기타공제</td>
+                </tr>
+                <tr class="bg-slate-50 font-bold">
+                  <td class="border border-slate-400 p-2">공제 총액 (B)</td>
+                  <td id="prevTotalDed" class="border border-slate-400 p-2 text-right text-red-600">0원</td>
+                  <td class="border border-slate-400 p-2"></td>
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+        </div>
+
+        <!-- 3. 최종 실수령액 배지 -->
+        <div class="bg-slate-900 text-white p-5 rounded-2xl flex items-center justify-between shadow-md">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">지급총액(A) - 공제총액(B)</p>
+            <h3 class="text-base font-bold text-white mt-0.5">최종 실수령액</h3>
+          </div>
+          <div class="text-right">
+            <span id="prevNetPay" class="text-2xl font-black text-orange-400">1,850,000원</span>
+          </div>
+        </div>
+
+        <!-- Document Footer / Sign -->
+        <div class="pt-6 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <div>
+            <p>교부일자: <span class="font-semibold text-slate-900" id="prevFooterDate">2026년 10월 10일</span></p>
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-slate-950">근로기준법에 따라 임금명세서를 교부합니다.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile App Guide Modal -->
+  <div id="mobileGuideModal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span class="w-2 h-4 bg-orange-600 rounded-full"></span> 스마트폰 홈 화면에 앱 추가하기
+        </h3>
+        <button onclick="hideMobileGuide()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+      </div>
+      <div class="text-xs text-slate-600 space-y-3 leading-relaxed">
+        <p>스마트폰 바탕화면에 아이콘을 추가하여 언제든 앱처럼 간편하게 실행할 수 있습니다.</p>
+        <div class="bg-slate-50 p-3 rounded-xl space-y-2 border border-slate-200">
+          <p class="font-bold text-slate-900">🍏 아이폰 (Safari 브라우저)</p>
+          <p>1. 하단 중앙의 <strong>[공유 버튼 (네모박스 화살표)]</strong> 터치</p>
+          <p>2. 메뉴에서 <strong>[홈 화면에 추가]</strong> 선택 후 저장</p>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl space-y-2 border border-slate-200">
+          <p class="font-bold text-slate-900">🤖 안드로이드 (Chrome 브라우저)</p>
+          <p>1. 우측 상단의 <strong>[점 3개 메뉴]</strong> 터치</p>
+          <p>2. 메뉴에서 <strong>[앱 설치]</strong> 또는 <strong>[홈 화면에 추가]</strong> 선택</p>
+        </div>
+      </div>
+      <button onclick="hideMobileGuide()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">
+        확인 완료
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function formatNumber(num) {
+      return Number(num).toLocaleString('ko-KR');
+    }
+
+    function parseNum(val) {
+      if (!val) return 0;
+      const clean = String(val).replace(/[^0-9.-]/g, '');
+      const parsed = parseFloat(clean);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // 금액 입력 시 실시간으로 천단위 콤마 포맷팅 적용 함수
+    function onMoneyInput(inputEl) {
+      const cursorPosition = inputEl.selectionStart;
+      const originalLength = inputEl.value.length;
+      const rawVal = parseNum(inputEl.value);
+      inputEl.value = rawVal === 0 && inputEl.value === "" ? "" : formatNumber(rawVal);
+      // 커서 위치 보정
+      const newLength = inputEl.value.length;
+      const diff = newLength - originalLength;
+      try {
+        inputEl.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+      } catch(e) {}
+    }
+
+    function getVal(id) {
+      const el = document.getElementById(id);
+      return el ? el.value : '';
+    }
+
+    function setVal(id, val) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = typeof val === 'number' ? formatNumber(val) : val;
+      }
+    }
+
+    // 기본시급 * 근로시간 = 기본급 및 주휴수당 자동 산출
+    function autoCalculateAll() {
+      const hourlyRate = parseNum(getVal('inputHourlyRate'));
+      const workHours = parseNum(getVal('inputWorkHours'));
+
+      // 기본급 산출 (시급 × 근로시간)
+      const basePay = Math.round(hourlyRate * workHours);
+      setVal('inputBasePay', basePay);
+
+      // 주휴수당 자동 산출 공식 (주 15시간 이상 근무 시)
+      const weeklyHours = workHours / 4.345;
+      let holidayPay = 0;
+      if (weeklyHours >= 15) {
+        holidayPay = Math.round((workHours / 40) * 8 * hourlyRate);
+      }
+      setVal('inputHolidayPay', holidayPay);
+
+      autoCalculateEmploymentInsurance();
+      syncWageFromPanel();
+    }
+
+    function autoCalculateEmploymentInsurance() {
+      const basePay = parseNum(getVal('inputBasePay'));
+      const holidayPay = parseNum(getVal('inputHolidayPay'));
+      const otPay = parseNum(getVal('inputOtPay'));
+      const otherPay = parseNum(getVal('inputOtherPay'));
+      
+      const totalTaxable = basePay + holidayPay + otPay + otherPay;
+      const empIns = Math.round(totalTaxable * 0.009); // 고용보험 0.9%
+      setVal('inputEmpIns', empIns);
+    }
+
+    function syncFromPanel() {
+      const businessName = getVal('businessNameInput') || '세븐일레븐 뉴오산본점';
+      const repName = getVal('repNameInput') || '이주현';
+      const businessAddr = getVal('businessAddrInput') || '경기도 오산시 역광장로 59';
+      const name = getVal('workerNameInput') || '이다솜';
+      const birth = getVal('workerBirthInput') || '980512';
+      const year = getVal('ctrlYear');
+      const month = getVal('ctrlMonth');
+      const payDate = getVal('ctrlPayDate');
+
+      const elBusinessName = document.getElementById('prevBusinessName');
+      if (elBusinessName) elBusinessName.innerText = businessName;
+      const elRepName = document.getElementById('prevRepName');
+      if (elRepName) elRepName.innerText = repName;
+      const elBusinessAddr = document.getElementById('prevBusinessAddr');
+      if (elBusinessAddr) elBusinessAddr.innerText = businessAddr;
+
+      const elWorkerName = document.getElementById('prevWorkerName');
+      if (elWorkerName) elWorkerName.innerText = name;
+      const elWorkerBirth = document.getElementById('prevWorkerBirth');
+      if (elWorkerBirth) elWorkerBirth.innerText = birth;
+      const elPeriod = document.getElementById('prevPeriod');
+      if (elPeriod) elPeriod.innerText = `${year}년 ${month}월 1일 ~ ${year}년 ${month}월말일`;
+      const elPayDate = document.getElementById('prevPayDate');
+      if (elPayDate) elPayDate.innerText = payDate;
+      const elFooterDate = document.getElementById('prevFooterDate');
+      if (elFooterDate) elFooterDate.innerText = payDate.replace(/-/g, '년 ').replace(/-/g, '월 ') + '일';
+    }
+
+    function syncWageFromPanel() {
+      autoCalculateEmploymentInsurance();
+
+      const basePay = parseNum(getVal('inputBasePay'));
+      const holidayPay = parseNum(getVal('inputHolidayPay'));
+      const otPay = parseNum(getVal('inputOtPay'));
+      const otherPay = parseNum(getVal('inputOtherPay'));
+
+      const natPen = parseNum(getVal('inputNatPen'));
+      const healthIns = parseNum(getVal('inputHealthIns'));
+      const longCare = parseNum(getVal('inputLongCare'));
+      const empIns = parseNum(getVal('inputEmpIns'));
+      const incomeTax = parseNum(getVal('inputIncomeTax'));
+      const otherDed = parseNum(getVal('inputOtherDed'));
+
+      const totalPay = basePay + holidayPay + otPay + otherPay;
+      const totalDed = natPen + healthIns + longCare + empIns + incomeTax + otherDed;
+      const netPay = totalPay - totalDed;
+
+      // 지급 내역 반영
+      const setTxt = (id, text) => { const el = document.getElementById(id); if(el) el.innerText = text; };
+      setTxt('prevBasePay', formatNumber(basePay) + '원');
+      setTxt('prevHolidayPay', formatNumber(holidayPay) + '원');
+      setTxt('prevOtPay', formatNumber(otPay) + '원');
+      setTxt('prevOtherPay', formatNumber(otherPay) + '원');
+      setTxt('prevTotalPay', formatNumber(totalPay) + '원');
+
+      // 공제 내역 반영
+      setTxt('prevNatPen', formatNumber(natPen) + '원');
+      setTxt('prevHealthIns', formatNumber(healthIns) + '원');
+      setTxt('prevLongCare', formatNumber(longCare) + '원');
+      setTxt('prevEmpIns', formatNumber(empIns) + '원');
+      setTxt('prevIncomeTax', formatNumber(incomeTax) + '원');
+      setTxt('prevOtherDed', formatNumber(otherDed) + '원');
+      setTxt('prevTotalDed', formatNumber(totalDed) + '원');
+
+      // 산출식 반영
+      const hourlyRate = parseNum(getVal('inputHourlyRate'));
+      const workHours = parseNum(getVal('inputWorkHours'));
+      setTxt('calcBaseFormula', `시급 ${formatNumber(hourlyRate)}원 × ${workHours}시간`);
+      setTxt('calcHolidayFormula', `(근로시간 ${workHours}/40)×8×시급`);
+
+      // 최종 실수령액
+      setTxt('prevNetPay', formatNumber(netPay) + '원');
+    }
+
+    function fillSampleData() {
+      setVal('businessNameInput', '세븐일레븐 뉴오산본점');
+      setVal('repNameInput', '이주현');
+      setVal('businessAddrInput', '경기도 오산시 역광장로 59');
+      setVal('workerNameInput', '이다솜');
+      setVal('workerBirthInput', '980512');
+      setVal('ctrlYear', '2026');
+      setVal('ctrlMonth', '09');
+      setVal('ctrlPayDate', '2026-10-10');
+      
+      setVal('inputHourlyRate', 10320);
+      setVal('inputWorkHours', '179.2');
+      autoCalculateAll();
+
+      setVal('inputHolidayPay', 0);
+      setVal('inputOtPay', 0);
+      setVal('inputOtherPay', 0);
+
+      setVal('inputNatPen', 0);
+      setVal('inputHealthIns', 0);
+      setVal('inputLongCare', 0);
+      setVal('inputIncomeTax', 0);
+      setVal('inputOtherDed', 0);
+
+      syncFromPanel();
+      syncWageFromPanel();
+    }
+
+    // 인쇄 창 차단 우회: 고해상도 렌더링 후 즉시 A4 PDF 파일 직접 다운로드
+    async function downloadPdfDirect() {
+      const btn = document.getElementById('btnDownloadPdf');
+      const btnText = document.getElementById('btnPdfText');
+      const element = document.getElementById('printableArea');
+      
+      if (!element) return;
+
+      const workerName = getVal('workerNameInput') || '근로자';
+      const year = getVal('ctrlYear') || '2026';
+      const month = getVal('ctrlMonth') || '09';
+      const fileName = `${year}년_${month}월_임금명세서_${workerName}.pdf`;
+
+      try {
+        btn.disabled = true;
+        btnText.innerText = 'PDF 생성 중...';
+
+        // 웹폰트 로딩 대기
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        // 고해상도(scale: 2)로 명세서 영역 캡처 (글자 깨짐 방지)
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: 850
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+        const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+        const margin = 10; // 상하좌우 여백 10mm
+        const imgWidth = pageWidth - (margin * 2);
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // A4 높이를 초과할 경우 비율 자동 축소하여 1장에 맞춤
+        let finalWidth = imgWidth;
+        let finalHeight = imgHeight;
+        if (finalHeight > pageHeight - (margin * 2)) {
+          const ratio = (pageHeight - (margin * 2)) / finalHeight;
+          finalHeight = pageHeight - (margin * 2);
+          finalWidth = finalWidth * ratio;
+        }
+
+        const xOffset = (pageWidth - finalWidth) / 2;
+        pdf.addImage(imgData, 'PNG', xOffset, margin, finalWidth, finalHeight);
+        pdf.save(fileName);
+
+      } catch (err) {
+        console.error('PDF 생성 오류:', err);
+        // 최후의 수단으로 브라우저 인쇄 시도
+        window.print();
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = 'PDF 파일 다운로드';
+      }
+    }
+
+    function showMobileGuide() {
+      const modal = document.getElementById('mobileGuideModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function hideMobileGuide() {
+      const modal = document.getElementById('mobileGuideModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    window.onload = function() {
+      fillSampleData();
+    };
+  </script>
+</body>
+</html>
