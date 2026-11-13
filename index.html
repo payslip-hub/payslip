@@ -2,7 +2,12 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="임금명세서">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f172a">
   <title>세븐일레븐 표준 임금명세서 작성기</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -52,6 +57,10 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button id="btnInstallPwa" onclick="installPwaApp()" class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1 text-white">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+          앱 설치
+        </button>
         <button onclick="fillSampleData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 transition">
           샘플 입력
         </button>
@@ -373,21 +382,25 @@
     <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <span class="w-2 h-4 bg-orange-600 rounded-full"></span> 스마트폰 홈 화면에 앱 추가하기
+          <span class="w-2 h-4 bg-orange-600 rounded-full"></span> 독립 앱(PWA)으로 설치하기
         </h3>
         <button onclick="hideMobileGuide()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
       <div class="text-xs text-slate-600 space-y-3 leading-relaxed">
-        <p>스마트폰 바탕화면에 아이콘을 추가하여 언제든 앱처럼 간편하게 실행할 수 있습니다.</p>
-        <div class="bg-slate-50 p-3 rounded-xl space-y-2 border border-slate-200">
-          <p class="font-bold text-slate-900">🍏 아이폰 (Safari 브라우저)</p>
-          <p>1. 하단 중앙의 <strong>[공유 버튼 (네모박스 화살표)]</strong> 터치</p>
-          <p>2. 메뉴에서 <strong>[홈 화면에 추가]</strong> 선택 후 저장</p>
+        <p>웹사이트가 아닌 <strong>인터넷 주소창 없는 전용 앱 화면</strong>으로 스마트폰에 설치할 수 있습니다.</p>
+        <div class="bg-amber-50 p-3 rounded-xl space-y-1.5 border border-amber-200 text-amber-900">
+          <p class="font-bold">⚠️ 주의사항 (미리보기 창에서는 설치 불가)</p>
+          <p>지금 보시는 <strong>Gemini 미리보기 화면 안에서는 보안상 앱 설치가 제한</strong>됩니다. 공유 링크를 <strong>Safari(아이폰)</strong> 또는 <strong>Chrome(안드로이드)</strong>으로 여신 뒤 아래 방법으로 설치하세요!</p>
         </div>
         <div class="bg-slate-50 p-3 rounded-xl space-y-2 border border-slate-200">
           <p class="font-bold text-slate-900">🤖 안드로이드 (Chrome 브라우저)</p>
-          <p>1. 우측 상단의 <strong>[점 3개 메뉴]</strong> 터치</p>
-          <p>2. 메뉴에서 <strong>[앱 설치]</strong> 또는 <strong>[홈 화면에 추가]</strong> 선택</p>
+          <p>1. 상단에 나타나는 초록색 <strong>[앱 설치]</strong> 버튼 클릭</p>
+          <p>2. 또는 우측 상단 <strong>[점 3개 ➔ 앱 설치]</strong> 선택 시 실제 앱(APK 형태)으로 설치됨</p>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl space-y-2 border border-slate-200">
+          <p class="font-bold text-slate-900">🍏 아이폰 (Safari 브라우저)</p>
+          <p>1. 하단 중앙 <strong>[공유 버튼 (네모 화살표)]</strong> 터치</p>
+          <p>2. <strong>[홈 화면에 추가]</strong> 선택 시 상단 주소창이 사라진 독립 앱으로 실행됨</p>
         </div>
       </div>
       <button onclick="hideMobileGuide()" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">
@@ -397,6 +410,66 @@
   </div>
 
   <script>
+    // PWA 동적 Manifest 및 Service Worker 등록 (독립 앱 설치 지원)
+    let deferredPrompt = null;
+
+    function initPwaSupport() {
+      try {
+        const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#ea580c"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="300" fill="#ffffff">7</text></svg>`;
+        const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
+
+        const manifest = {
+          name: '세븐일레븐 임금명세서 작성기',
+          short_name: '임금명세서',
+          start_url: window.location.href,
+          display: 'standalone',
+          background_color: '#f1f5f9',
+          theme_color: '#0f172a',
+          icons: [
+            { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+            { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+          ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = URL.createObjectURL(manifestBlob);
+        document.head.appendChild(manifestLink);
+
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+          const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+            self.addEventListener('fetch', (e) => {});
+          `;
+          const swBlob = new Blob([swCode], { type: 'application/javascript' });
+          navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const installBtn = document.getElementById('btnInstallPwa');
+      if (installBtn) installBtn.classList.remove('hidden');
+    });
+
+    async function installPwaApp() {
+      if (!deferredPrompt) {
+        showMobileGuide();
+        return;
+      }
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        const installBtn = document.getElementById('btnInstallPwa');
+        if (installBtn) installBtn.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    }
+
     function formatNumber(num) {
       return Number(num).toLocaleString('ko-KR');
     }
@@ -644,6 +717,7 @@
     }
 
     window.onload = function() {
+      initPwaSupport();
       fillSampleData();
     };
   </script>
