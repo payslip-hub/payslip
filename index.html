@@ -151,7 +151,7 @@
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 mb-1">총 근로시간 (시간)</label>
-            <input type="text" id="inputWorkHours" value="179.2" oninput="autoCalculateAll()" class="w-full text-xs sm:text-sm p-2 rounded-lg border border-slate-200 text-right font-medium" inputmode="decimal">
+            <input type="text" id="inputWorkHours" value="66" oninput="autoCalculateAll()" class="w-full text-xs sm:text-sm p-2 rounded-lg border border-slate-200 text-right font-medium" inputmode="decimal">
           </div>
         </div>
 
@@ -280,7 +280,7 @@
                 <tr>
                   <td class="border border-slate-400 p-2 font-medium">기본급</td>
                   <td id="prevBasePay" class="border border-slate-400 p-2 text-right font-bold">1,850,000원</td>
-                  <td id="calcBaseFormula" class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">시급 10,320원 × 179.2시간</td>
+                  <td id="calcBaseFormula" class="border border-slate-400 p-2 text-[10px] text-slate-500 text-center">시급 10,320원 × 66시간</td>
                 </tr>
                 <tr>
                   <td class="border border-slate-400 p-2 font-medium">주휴수당</td>
@@ -666,7 +666,7 @@
       setVal('ctrlPayDate', '2026-10-10');
       
       setVal('inputHourlyRate', 10320);
-      setVal('inputWorkHours', '179.2');
+      setVal('inputWorkHours', '66');
       autoCalculateAll();
 
       setVal('inputHolidayPay', 0);
